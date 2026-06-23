@@ -62,8 +62,16 @@ export default function Setup() {
       } = supabase.storage.from('photos').getPublicUrl(filename)
 
       setPhotoUrl(publicUrl)
+
+      // Persist immediately so a reload doesn't lose the photo
+      await supabase
+        .from('guests')
+        .update({ photo_url: publicUrl } as Record<string, unknown>)
+        .eq('name', currentUser)
     } catch (err) {
-      setError('No se pudo subir la foto. Intenta de nuevo.')
+      console.error('Upload error:', err)
+      const msg = err instanceof Error ? err.message : JSON.stringify(err)
+      setError(`Error al subir foto: ${msg}`)
       setPhotoPreview(null)
     } finally {
       setUploading(false)
@@ -148,9 +156,6 @@ export default function Setup() {
             className="hidden"
             onChange={handleFileChange}
           />
-          <p className="text-xs text-gray-400 mt-2">
-            Foto opcional — se redimensiona a 400px
-          </p>
         </div>
 
         {/* Fields */}
