@@ -51,8 +51,12 @@ export default function Setup() {
     setError(null)
 
     try {
-      const resized = await resizeImage(file, 400)
-      const filename = `${currentUser.replace(/\s+/g, '_')}_${Date.now()}.jpg`
+      const resized = await resizeImage(file)
+      const safeName = currentUser
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-zA-Z0-9]/g, '_')
+      const filename = `${safeName}_${Date.now()}.jpg`
 
       const { error: uploadError } = await supabase.storage
         .from('photos')

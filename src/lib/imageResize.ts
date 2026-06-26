@@ -1,4 +1,4 @@
-export async function resizeImage(file: File, maxSize = 400): Promise<Blob> {
+export async function resizeImage(file: File, maxSize = 1200): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
@@ -37,7 +37,7 @@ export async function resizeImage(file: File, maxSize = 400): Promise<Blob> {
           else reject(new Error('No se pudo crear el blob'))
         },
         'image/jpeg',
-        0.88
+        0.92
       )
     }
 
