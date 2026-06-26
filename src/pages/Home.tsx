@@ -20,9 +20,9 @@ export default function Home() {
         <div className="animate-fade-in">
           <div className="text-7xl mb-4">💍</div>
           <h1 className="text-4xl font-black bg-gradient-to-r from-rose-500 to-violet-600 bg-clip-text text-transparent leading-tight mb-2">
-            Solteros del
+            Solteros de
             <br />
-            Matrimonio
+            la Boda
           </h1>
           <p className="text-gray-500 text-base max-w-xs mx-auto">
             El amor puede estar más cerca de lo que crees. ¿Quién sabe? A lo mejor hoy conoces a alguien especial 💕
@@ -58,12 +58,13 @@ export default function Home() {
           )}
         </div>
 
-        {/* Admin link */}
+        {/* Admin link — visible */}
         <Link
           to="/admin"
-          className="text-gray-300 text-xs mt-4 hover:text-gray-400 transition-colors"
+          className="flex items-center gap-1.5 text-gray-400 text-sm border border-gray-200 rounded-xl px-4 py-2 bg-white shadow-sm active:scale-95 transition-transform"
         >
-          Admin
+          <span>⚙️</span>
+          <span>Panel Admin</span>
         </Link>
       </div>
     </Layout>

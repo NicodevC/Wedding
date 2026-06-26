@@ -2,8 +2,10 @@ export interface Guest {
   id: string
   name: string
   photo_url: string | null
+  photos: string[]
   how_they_know: string | null
-  favorite_song: string | null
+  favorite_song: string | null  // repurposed as "origin / de dónde eres"
+  table_number: string | null
   ready: boolean
   created_at: string
 }
@@ -22,7 +24,6 @@ export interface Match {
   created_at: string
 }
 
-// Shape required by @supabase/supabase-js v2 for the Database generic
 export interface Database {
   public: {
     Tables: {

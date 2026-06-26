@@ -64,40 +64,50 @@ export default function Matches() {
           </div>
         ) : (
           <ul className="flex flex-col gap-4">
-            {matches.map(({ match, otherGuest }) => (
-              <li
-                key={match.id}
-                className="bg-white rounded-3xl shadow-sm border border-pink-100 p-4 flex items-center gap-4 animate-fade-in"
-              >
-                {otherGuest.photo_url ? (
-                  <img
-                    src={otherGuest.photo_url}
-                    alt={otherGuest.name}
-                    className="w-16 h-16 rounded-full object-cover flex-shrink-0 border-2 border-rose-200"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-rose-100 to-violet-100 flex items-center justify-center text-3xl flex-shrink-0 border-2 border-rose-200">
-                    👤
+            {matches.map(({ match, otherGuest }) => {
+              const mainPhoto = otherGuest.photos?.length
+                ? otherGuest.photos[0]
+                : otherGuest.photo_url
+              return (
+                <li
+                  key={match.id}
+                  className="bg-white rounded-3xl shadow-sm border border-pink-100 p-4 flex items-center gap-4 animate-fade-in"
+                >
+                  {mainPhoto ? (
+                    <img
+                      src={mainPhoto}
+                      alt={otherGuest.name}
+                      className="w-16 h-16 rounded-full object-cover flex-shrink-0 border-2 border-rose-200"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-rose-100 to-violet-100 flex items-center justify-center text-3xl flex-shrink-0 border-2 border-rose-200">
+                      👤
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-800 text-lg leading-tight">
+                      {otherGuest.name}
+                    </p>
+                    {otherGuest.table_number && (
+                      <p className="text-violet-500 text-xs">
+                        🍽️ Mesa {otherGuest.table_number}
+                      </p>
+                    )}
+                    {otherGuest.how_they_know && (
+                      <p className="text-gray-500 text-sm truncate">
+                        📍 {otherGuest.how_they_know}
+                      </p>
+                    )}
+                    {otherGuest.favorite_song && (
+                      <p className="text-gray-400 text-xs truncate">
+                        🌍 {otherGuest.favorite_song}
+                      </p>
+                    )}
                   </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-800 text-lg leading-tight">
-                    {otherGuest.name}
-                  </p>
-                  {otherGuest.how_they_know && (
-                    <p className="text-gray-500 text-sm truncate">
-                      📍 {otherGuest.how_they_know}
-                    </p>
-                  )}
-                  {otherGuest.favorite_song && (
-                    <p className="text-gray-400 text-xs truncate">
-                      🎵 {otherGuest.favorite_song}
-                    </p>
-                  )}
-                </div>
-                <span className="text-2xl flex-shrink-0">💞</span>
-              </li>
-            ))}
+                  <span className="text-2xl flex-shrink-0">💞</span>
+                </li>
+              )
+            })}
           </ul>
         )}
       </div>

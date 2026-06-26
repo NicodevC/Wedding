@@ -9,10 +9,13 @@ export default function Admin() {
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState(false)
   const [newGuestName, setNewGuestName] = useState('')
+  const [newGuestTable, setNewGuestTable] = useState('')
   const [addError, setAddError] = useState<string | null>(null)
   const [addLoading, setAddLoading] = useState(false)
+  const [editingTableId, setEditingTableId] = useState<string | null>(null)
+  const [editingTableValue, setEditingTableValue] = useState('')
 
-  const { guests, loading, addGuest, deleteGuest } = useGuests()
+  const { guests, loading, addGuest, deleteGuest, updateTableNumber } = useGuests()
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,11 +43,12 @@ export default function Admin() {
       return
     }
 
-    const { error } = await addGuest(name)
+    const { error } = await addGuest(name, newGuestTable)
     if (error) {
       setAddError('Error al añadir. ¿El nombre ya existe?')
     } else {
       setNewGuestName('')
+      setNewGuestTable('')
     }
     setAddLoading(false)
   }
@@ -54,6 +58,16 @@ export default function Admin() {
     await deleteGuest(id)
   }
 
+  const startEditTable = (id: string, current: string | null) => {
+    setEditingTableId(id)
+    setEditingTableValue(current ?? '')
+  }
+
+  const saveEditTable = async (id: string) => {
+    await updateTableNumber(id, editingTableValue)
+    setEditingTableId(null)
+  }
+
   if (!authenticated) {
     return (
       <Layout showNav={false}>
@@ -61,7 +75,7 @@ export default function Admin() {
           <div className="w-full max-w-xs">
             <div className="text-center mb-8">
               <div className="text-5xl mb-3">🔐</div>
-              <h1 className="text-2xl font-black text-gray-800">Admin</h1>
+              <h1 className="text-2xl font-black text-gray-800">Panel Admin</h1>
               <p className="text-gray-400 text-sm mt-1">Acceso restringido</p>
             </div>
 
@@ -110,21 +124,31 @@ export default function Admin() {
         {/* Add guest */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-4 mb-6">
           <h2 className="font-bold text-gray-700 mb-3">Añadir invitado</h2>
-          <form onSubmit={handleAddGuest} className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Nombre completo"
-              value={newGuestName}
-              onChange={(e) => setNewGuestName(e.target.value)}
-              maxLength={60}
-              className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-rose-300 text-gray-700 text-sm"
-            />
+          <form onSubmit={handleAddGuest} className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Nombre completo"
+                value={newGuestName}
+                onChange={(e) => setNewGuestName(e.target.value)}
+                maxLength={60}
+                className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-rose-300 text-gray-700 text-sm"
+              />
+              <input
+                type="text"
+                placeholder="Mesa"
+                value={newGuestTable}
+                onChange={(e) => setNewGuestTable(e.target.value)}
+                maxLength={10}
+                className="w-20 px-3 py-2.5 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-rose-300 text-gray-700 text-sm"
+              />
+            </div>
             <button
               type="submit"
               disabled={addLoading || !newGuestName.trim()}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-violet-600 text-white font-bold text-sm shadow active:scale-95 transition-transform disabled:opacity-50"
+              className="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-violet-600 text-white font-bold text-sm shadow active:scale-95 transition-transform disabled:opacity-50"
             >
-              {addLoading ? '...' : '+ Añadir'}
+              {addLoading ? '...' : '+ Añadir invitado'}
             </button>
           </form>
           {addError && (
@@ -156,12 +180,37 @@ export default function Admin() {
                     👤
                   </div>
                 )}
+
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-800 text-sm">{guest.name}</p>
-                  <p className={`text-xs ${guest.ready ? 'text-emerald-500' : 'text-gray-400'}`}>
-                    {guest.ready ? '✓ Perfil completo' : '○ Sin configurar'}
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className={`text-xs ${guest.ready ? 'text-emerald-500' : 'text-gray-400'}`}>
+                      {guest.ready ? '✓ Listo' : '○ Sin perfil'}
+                    </p>
+                    {/* Inline table edit */}
+                    {editingTableId === guest.id ? (
+                      <input
+                        autoFocus
+                        type="text"
+                        value={editingTableValue}
+                        onChange={(e) => setEditingTableValue(e.target.value)}
+                        onBlur={() => saveEditTable(guest.id)}
+                        onKeyDown={(e) => e.key === 'Enter' && saveEditTable(guest.id)}
+                        placeholder="Mesa"
+                        maxLength={10}
+                        className="w-16 text-xs border border-rose-300 rounded-lg px-1.5 py-0.5 focus:outline-none"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => startEditTable(guest.id, guest.table_number)}
+                        className="text-xs text-violet-500 border border-violet-200 rounded-lg px-1.5 py-0.5"
+                      >
+                        {guest.table_number ? `🍽️ Mesa ${guest.table_number}` : '+ Mesa'}
+                      </button>
+                    )}
+                  </div>
                 </div>
+
                 <button
                   onClick={() => handleDelete(guest.id, guest.name)}
                   className="text-rose-400 text-xl px-2 py-1 rounded-lg active:bg-rose-50 transition-colors flex-shrink-0"

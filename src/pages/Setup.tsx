@@ -3,16 +3,18 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { resizeImage } from '../lib/imageResize'
 import Layout from '../components/Layout'
+import type { Guest } from '../types/database'
+
+const MAX_PHOTOS = 3
 
 export default function Setup() {
   const navigate = useNavigate()
   const currentUser = localStorage.getItem('wedding_user') ?? ''
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [photos, setPhotos] = useState<string[]>([])
   const [howTheyKnow, setHowTheyKnow] = useState('')
-  const [favoriteSong, setFavoriteSong] = useState('')
+  const [origin, setOrigin] = useState('')
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -26,56 +28,70 @@ export default function Setup() {
       .single()
       .then(({ data }) => {
         if (data) {
-          const g = data as import('../types/database').Guest
-          setPhotoUrl(g.photo_url)
-          setPhotoPreview(g.photo_url)
+          const g = data as Guest
+          const existingPhotos = g.photos?.length
+            ? g.photos
+            : g.photo_url
+            ? [g.photo_url]
+            : []
+          setPhotos(existingPhotos)
           setHowTheyKnow(g.how_they_know ?? '')
-          setFavoriteSong(g.favorite_song ?? '')
+          setOrigin(g.favorite_song ?? '')
         }
       })
   }, [currentUser])
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    // Reset input so same file can be re-selected
+    e.target.value = ''
 
     setUploading(true)
     setError(null)
 
     try {
       const resized = await resizeImage(file, 400)
-
-      // Local preview
-      const previewUrl = URL.createObjectURL(resized)
-      setPhotoPreview(previewUrl)
-
-      // Upload to Supabase Storage
       const filename = `${currentUser.replace(/\s+/g, '_')}_${Date.now()}.jpg`
+
       const { error: uploadError } = await supabase.storage
         .from('photos')
         .upload(filename, resized, { contentType: 'image/jpeg', upsert: true })
 
       if (uploadError) throw uploadError
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('photos').getPublicUrl(filename)
+      const { data: { publicUrl } } = supabase.storage.from('photos').getPublicUrl(filename)
 
-      setPhotoUrl(publicUrl)
+      const newPhotos = [...photos, publicUrl]
+      setPhotos(newPhotos)
 
-      // Persist immediately so a reload doesn't lose the photo
+      // Persist immediately
       await supabase
         .from('guests')
-        .update({ photo_url: publicUrl } as Record<string, unknown>)
+        .update({
+          photos: newPhotos,
+          photo_url: newPhotos[0],
+        } as Record<string, unknown>)
         .eq('name', currentUser)
     } catch (err) {
       console.error('Upload error:', err)
       const msg = err instanceof Error ? err.message : JSON.stringify(err)
       setError(`Error al subir foto: ${msg}`)
-      setPhotoPreview(null)
     } finally {
       setUploading(false)
     }
+  }
+
+  const handleRemovePhoto = async (index: number) => {
+    const newPhotos = photos.filter((_, i) => i !== index)
+    setPhotos(newPhotos)
+    await supabase
+      .from('guests')
+      .update({
+        photos: newPhotos,
+        photo_url: newPhotos[0] ?? null,
+      } as Record<string, unknown>)
+      .eq('name', currentUser)
   }
 
   const handleSave = async () => {
@@ -90,9 +106,10 @@ export default function Setup() {
     const { error } = await supabase
       .from('guests')
       .update({
-        photo_url: photoUrl,
+        photos,
+        photo_url: photos[0] ?? null,
         how_they_know: howTheyKnow.trim(),
-        favorite_song: favoriteSong.trim() || null,
+        favorite_song: origin.trim() || null,
         ready: true,
       } as Record<string, unknown>)
       .eq('name', currentUser)
@@ -118,43 +135,53 @@ export default function Setup() {
           </p>
         </div>
 
-        {/* Photo upload */}
-        <div className="flex flex-col items-center mb-6">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
-            className="relative w-32 h-32 rounded-full overflow-hidden shadow-lg active:scale-95 transition-transform"
-          >
-            {photoPreview ? (
-              <img
-                src={photoPreview}
-                alt="Tu foto"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-rose-100 to-violet-100 flex flex-col items-center justify-center gap-1">
-                <span className="text-4xl">📷</span>
-                <span className="text-xs text-gray-400">Subir foto</span>
+        {/* Photos */}
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-600 mb-2">
+            Tus fotos ({photos.length}/{MAX_PHOTOS})
+          </label>
+          <div className="flex gap-3 flex-wrap">
+            {photos.map((url, i) => (
+              <div key={url} className="relative w-24 h-24 rounded-2xl overflow-hidden shadow-sm">
+                <img src={url} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
+                <button
+                  onClick={() => handleRemovePhoto(i)}
+                  className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white text-xs flex items-center justify-center leading-none"
+                  aria-label="Eliminar foto"
+                >
+                  ✕
+                </button>
+                {i === 0 && (
+                  <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] text-center py-0.5">
+                    Principal
+                  </div>
+                )}
               </div>
+            ))}
+
+            {photos.length < MAX_PHOTOS && (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="w-24 h-24 rounded-2xl border-2 border-dashed border-rose-300 bg-rose-50 flex flex-col items-center justify-center gap-1 active:scale-95 transition-transform disabled:opacity-50"
+              >
+                {uploading ? (
+                  <span className="text-xs text-gray-400">Subiendo...</span>
+                ) : (
+                  <>
+                    <span className="text-3xl">📷</span>
+                    <span className="text-xs text-rose-400 font-medium">Añadir</span>
+                  </>
+                )}
+              </button>
             )}
-            {uploading && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <div className="text-white text-xs">Subiendo...</div>
-              </div>
-            )}
-            {/* Edit overlay */}
-            {photoPreview && !uploading && (
-              <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
-                <span className="text-white text-sm font-bold">Cambiar</span>
-              </div>
-            )}
-          </button>
+          </div>
           <input
             ref={fileInputRef}
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={handleFileChange}
+            onChange={handleAddPhoto}
           />
         </div>
 
@@ -176,13 +203,13 @@ export default function Setup() {
 
           <div>
             <label className="block text-sm font-semibold text-gray-600 mb-1">
-              Tu canción favorita 🎵
+              ¿De dónde eres? 🌍
             </label>
             <input
               type="text"
-              value={favoriteSong}
-              onChange={(e) => setFavoriteSong(e.target.value)}
-              placeholder="Ej: Shape of You — Ed Sheeran"
+              value={origin}
+              onChange={(e) => setOrigin(e.target.value)}
+              placeholder="Ej: Madrid, Sevilla, México..."
               maxLength={80}
               className="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-300 text-gray-700"
             />

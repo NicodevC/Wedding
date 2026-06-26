@@ -20,7 +20,7 @@ export default function Layout({ children, showNav = true }: Props) {
       <header className="bg-gradient-to-r from-rose-500 to-violet-600 text-white px-4 py-3 shadow-md flex-shrink-0">
         <div className="max-w-sm mx-auto flex items-center justify-between">
           <span className="text-lg font-black tracking-tight">
-            💍 Solteros del Matrimonio
+            💍 Solteros de la Boda
           </span>
         </div>
       </header>
