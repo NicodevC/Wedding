@@ -14,8 +14,11 @@ export default function Admin() {
   const [addLoading, setAddLoading] = useState(false)
   const [editingTableId, setEditingTableId] = useState<string | null>(null)
   const [editingTableValue, setEditingTableValue] = useState('')
+  const [editingPinId, setEditingPinId] = useState<string | null>(null)
+  const [editingPinValue, setEditingPinValue] = useState('')
+  const [lastAddedPin, setLastAddedPin] = useState<{ name: string; pin: string } | null>(null)
 
-  const { guests, loading, addGuest, deleteGuest, updateTableNumber } = useGuests()
+  const { guests, loading, addGuest, deleteGuest, updateTableNumber, updatePin } = useGuests()
 
   const handleAuth = (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,10 +46,11 @@ export default function Admin() {
       return
     }
 
-    const { error } = await addGuest(name, newGuestTable)
+    const { error, pin } = await addGuest(name, newGuestTable)
     if (error) {
       setAddError('Error al añadir. ¿El nombre ya existe?')
     } else {
+      setLastAddedPin({ name, pin: pin! })
       setNewGuestName('')
       setNewGuestTable('')
     }
@@ -66,6 +70,16 @@ export default function Admin() {
   const saveEditTable = async (id: string) => {
     await updateTableNumber(id, editingTableValue)
     setEditingTableId(null)
+  }
+
+  const startEditPin = (id: string, current: string | null) => {
+    setEditingPinId(id)
+    setEditingPinValue(current ?? '')
+  }
+
+  const saveEditPin = async (id: string) => {
+    await updatePin(id, editingPinValue)
+    setEditingPinId(null)
   }
 
   if (!authenticated) {
@@ -154,6 +168,20 @@ export default function Admin() {
           {addError && (
             <p className="text-rose-500 text-xs mt-2">{addError}</p>
           )}
+          {lastAddedPin && (
+            <div className="mt-3 p-3 bg-violet-50 border border-violet-200 rounded-2xl flex items-center justify-between gap-2">
+              <p className="text-violet-700 text-sm">
+                <span className="font-semibold">{lastAddedPin.name}</span> — PIN:{' '}
+                <span className="font-black text-lg tracking-widest">{lastAddedPin.pin}</span>
+              </p>
+              <button
+                onClick={() => setLastAddedPin(null)}
+                className="text-violet-400 text-lg"
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Guest list */}
@@ -183,11 +211,12 @@ export default function Admin() {
 
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-800 text-sm">{guest.name}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <p className={`text-xs ${guest.ready ? 'text-emerald-500' : 'text-gray-400'}`}>
                       {guest.ready ? '✓ Listo' : '○ Sin perfil'}
                     </p>
-                    {/* Inline table edit */}
+
+                    {/* Mesa */}
                     {editingTableId === guest.id ? (
                       <input
                         autoFocus
@@ -198,14 +227,37 @@ export default function Admin() {
                         onKeyDown={(e) => e.key === 'Enter' && saveEditTable(guest.id)}
                         placeholder="Mesa"
                         maxLength={10}
-                        className="w-16 text-xs border border-rose-300 rounded-lg px-1.5 py-0.5 focus:outline-none"
+                        className="w-14 text-xs border border-rose-300 rounded-lg px-1.5 py-0.5 focus:outline-none"
                       />
                     ) : (
                       <button
                         onClick={() => startEditTable(guest.id, guest.table_number)}
                         className="text-xs text-violet-500 border border-violet-200 rounded-lg px-1.5 py-0.5"
                       >
-                        {guest.table_number ? `🍽️ Mesa ${guest.table_number}` : '+ Mesa'}
+                        {guest.table_number ? `🍽️ ${guest.table_number}` : '+ Mesa'}
+                      </button>
+                    )}
+
+                    {/* PIN */}
+                    {editingPinId === guest.id ? (
+                      <input
+                        autoFocus
+                        type="tel"
+                        inputMode="numeric"
+                        value={editingPinValue}
+                        onChange={(e) => setEditingPinValue(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                        onBlur={() => saveEditPin(guest.id)}
+                        onKeyDown={(e) => e.key === 'Enter' && saveEditPin(guest.id)}
+                        placeholder="PIN"
+                        maxLength={4}
+                        className="w-14 text-xs border border-rose-300 rounded-lg px-1.5 py-0.5 focus:outline-none"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => startEditPin(guest.id, guest.pin)}
+                        className="text-xs text-rose-500 border border-rose-200 rounded-lg px-1.5 py-0.5 font-mono"
+                      >
+                        🔑 {guest.pin ?? '+ PIN'}
                       </button>
                     )}
                   </div>

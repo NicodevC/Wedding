@@ -6,6 +6,7 @@ export interface Guest {
   how_they_know: string | null
   favorite_song: string | null  // repurposed as "origin / de dónde eres"
   table_number: string | null
+  pin: string | null
   ready: boolean
   created_at: string
 }
