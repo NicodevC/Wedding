@@ -12,8 +12,7 @@ export default function Swipe() {
   const navigate = useNavigate()
   const currentUser = localStorage.getItem('wedding_user')
 
-  const [candidates, setCandidates] = useState<Guest[]>([])
-  const [index, setIndex] = useState(0)
+  const [allCandidates, setAllCandidates] = useState<Guest[]>([])
   const [loadingCandidates, setLoadingCandidates] = useState(true)
   const [localMatchGuest, setLocalMatchGuest] = useState<Guest | null>(null)
   const [currentGuest, setCurrentGuest] = useState<Guest | null>(null)
@@ -22,7 +21,7 @@ export default function Swipe() {
   const { likedNames, passedNames, loading: likesLoading, likeGuest, passGuest } = useLikes(currentUser)
   const { newMatch, clearNewMatch } = useMatches(currentUser)
 
-  // Load current user's guest profile for the popup
+  // Load current user's profile for the match popup
   useEffect(() => {
     if (!currentUser) return
     supabase
@@ -35,33 +34,28 @@ export default function Swipe() {
       })
   }, [currentUser])
 
-  // Load candidates once likes/passed are loaded
+  // Fetch all candidates once on mount — filtering is done reactively below
   useEffect(() => {
-    if (!currentUser || likesLoading) return
+    if (!currentUser) return
+    supabase
+      .from('guests')
+      .select('*')
+      .eq('ready', true)
+      .neq('name', currentUser)
+      .order('name')
+      .then(({ data }) => {
+        setAllCandidates((data as Guest[] | null) ?? [])
+        setLoadingCandidates(false)
+      })
+  }, [currentUser])
 
-    const load = async () => {
-      setLoadingCandidates(true)
-
-      const { data } = await supabase
-        .from('guests')
-        .select('*')
-        .eq('ready', true)
-        .neq('name', currentUser)
-        .order('name')
-
-      const all = (data as Guest[] | null) ?? []
-      const filtered = all.filter(
-        (g) => !likedNames.has(g.name) && !passedNames.has(g.name)
-      )
-      setCandidates(filtered)
-      setLoadingCandidates(false)
-    }
-
-    load()
-  }, [currentUser, likesLoading]) // intentionally stable: only re-run on mount
-
-  const current = candidates[index]
-  const exhausted = !loadingCandidates && !likesLoading && index >= candidates.length
+  // Derived: always computed from latest likedNames + passedNames — no stale index
+  const remaining = allCandidates.filter(
+    (g) => !likedNames.has(g.name) && !passedNames.has(g.name)
+  )
+  const current = remaining[0] ?? null
+  const loading = loadingCandidates || likesLoading
+  const exhausted = !loading && remaining.length === 0
 
   if (!currentUser) {
     navigate('/login')
@@ -73,10 +67,8 @@ export default function Swipe() {
     setActionDisabled(true)
 
     const { isMatch } = await likeGuest(current)
-    if (isMatch) {
-      setLocalMatchGuest(current)
-    }
-    setIndex((i) => i + 1)
+    if (isMatch) setLocalMatchGuest(current)
+
     setTimeout(() => setActionDisabled(false), 300)
   }
 
@@ -84,7 +76,6 @@ export default function Swipe() {
     if (!current || actionDisabled) return
     setActionDisabled(true)
     passGuest(current.name)
-    setIndex((i) => i + 1)
     setTimeout(() => setActionDisabled(false), 300)
   }
 
@@ -99,7 +90,7 @@ export default function Swipe() {
   return (
     <Layout>
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] gap-4">
-        {loadingCandidates || likesLoading ? (
+        {loading ? (
           <div className="text-center text-gray-400">
             <div className="text-5xl mb-4 animate-pulse">💘</div>
             <p>Buscando solteros...</p>
@@ -109,7 +100,7 @@ export default function Swipe() {
             <div className="text-6xl">🎉</div>
             <h2 className="text-2xl font-black text-gray-800">¡Ya viste a todos!</h2>
             <p className="text-gray-500 text-sm max-w-xs">
-              No quedan más invitados disponibles por ahora. Revisa tus matches o vuelve más tarde.
+              No quedan más invitados disponibles. Revisa tus matches o vuelve más tarde.
             </p>
             <button
               onClick={() => navigate('/matches')}
@@ -120,9 +111,8 @@ export default function Swipe() {
           </div>
         ) : current ? (
           <>
-            {/* Counter */}
             <p className="text-xs text-gray-400 font-medium self-end">
-              {index + 1} / {candidates.length}
+              {remaining.length} pendiente{remaining.length !== 1 ? 's' : ''}
             </p>
             <GuestCard
               key={current.id}
@@ -135,7 +125,6 @@ export default function Swipe() {
         ) : null}
       </div>
 
-      {/* Match popup — realtime or local */}
       {activeMatchGuest && (
         <MatchPopup
           matchedGuest={activeMatchGuest}
