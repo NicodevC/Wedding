@@ -23,7 +23,8 @@ function PhotoLightbox({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center animate-fade-in"
+      className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center animate-fade-in"
+      style={{ width: '100dvw', height: '100dvh' }}
       onClick={onClose}
     >
       {/* Close */}
@@ -38,7 +39,8 @@ function PhotoLightbox({
       <img
         src={photos[index]}
         alt=""
-        className="max-h-[80vh] max-w-full object-contain rounded-2xl"
+        className="w-full h-full object-contain"
+        style={{ maxHeight: '100dvh', maxWidth: '100dvw' }}
         onClick={(e) => e.stopPropagation()}
       />
 
